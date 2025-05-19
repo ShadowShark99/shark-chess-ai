@@ -35,16 +35,133 @@ fn bit_scan(mut bit: u64) -> u8{
         MOD67TABLE[remainder] as u8
 }
 
-fn main() {
-    // let black_pawns: i64 = 0; 
-    // for i in 0..64{
-    //     println!("{} -> {}", i, index_to_position(i));
-    // }
-    for i in 0..64{
-        let bit = (1 as u64) << i;
-        let calc_index = bit_scan(bit);
-        if calc_index != i{
-            println!("error at {}", i);
-        }
+#[derive(Debug, PartialEq)]
+enum Color{
+    White,
+    Black,
+}
+
+#[derive(Debug, PartialEq)]
+enum PieceType{
+    Pawn, 
+    Rook,
+    Knight,
+    Bishop,
+    Queen,
+    King,
+}
+
+#[derive(Debug, PartialEq)]
+struct Piece{
+    piece_type: PieceType,
+    color: Color,
+    position: PiecePosition,
+}
+
+#[derive(Debug, PartialEq)]
+enum Square{
+    Empty,
+    //position
+    Occupied(usize),
+}
+
+#[derive(Debug, PartialEq)]
+struct Game{
+    pieces: Vec<Piece>,
+    squares: Vec<Square>,
+}
+
+impl Game{
+    fn initialize() -> Game{
+        Game::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
     }
+
+    fn to_string(&self) -> String{
+        let mut board = "".to_owned();
+        let mut temp = "".to_owned();
+
+        for(i, square) in self.squares.iter().enumerate(){
+            match square{
+                Square::Empty => temp.push_str(&index_to_position(i.try_into().unwrap())),
+                Square::Occupied(idx) => temp.push_str(&self.pieces[*idx].to_string()),
+                
+            }
+            if(i+1) % 8 == 0 {
+                temp.push_str("\n");
+                board.insert_str(0, &temp);
+                temp.clear();
+            }
+            //board.insert_str(0,&temp);
+        }
+        board
+    }
+
+    //generate a game from fen string
+    fn from_fen(fen: &str) -> Game{
+        let mut pieces = vec![];
+        let mut squares = vec![];
+        let mut position = 0;
+        
+        //parse the fen string and create a game object
+        for row in fen.split("/"){
+            for c in row.chars(){
+                if(c.is_digit(10)){
+                    let num = c.to_digit(10).unwrap();
+                    for _ in 0..num{
+
+                        squares.push(Square::Empty);
+                        position += 1;
+                    }
+                }
+                else{
+                    let piece_type = match c.to_ascii_lowercase(){
+                        'p' => PieceType::Pawn,
+                        'r' => PieceType::Rook,
+                        'n' => PieceType::Knight,
+                        'b' => PieceType::Bishop,
+                        'q' => PieceType::Queen,
+                        'k' => PieceType::King,
+                        _ => panic!("Invalid piece type"),
+                    };
+                    let color = if c.is_uppercase(){Color::White}else{Color::Black};
+                    pieces.push(Piece{piece_type, color, position: 1<<position});
+                    
+                    squares.push(Square::Occupied(pieces.len()-1));
+                    position += 1;
+                }
+            }
+        }
+        Game{
+            pieces,
+            squares,
+        }
+
+    }
+}
+
+impl Piece{
+    fn to_string(&self) -> String{
+        let mut result = match self.piece_type{
+            PieceType::Pawn => "p ",
+            PieceType::Rook => "r ",
+            PieceType::Knight => "n ",
+            PieceType::Bishop => "b ",
+            PieceType::Queen => "q ",
+            PieceType::King => "k ",
+        }.to_string();
+
+        if(self.color == Color::White){
+            result.make_ascii_uppercase();
+        }
+
+        result
+    }
+}
+
+fn main() {
+    
+    let game = Game::initialize();
+
+    game.to_string();
+    println!("{}", game.to_string());
 }
