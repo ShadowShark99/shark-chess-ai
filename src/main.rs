@@ -1,3 +1,5 @@
+use bitflags::bitflags;
+
 type PiecePosition = u64;
 
 fn bit_to_position(bit: PiecePosition) -> Result<String, String>{
@@ -61,14 +63,41 @@ struct Piece{
 #[derive(Debug, PartialEq)]
 enum Square{
     Empty,
-    //position
+    //index of piece to find in pieces vector
     Occupied(usize),
+}
+
+bitflags!{
+    struct CastlingRights: u8{
+        const NONE = 0;
+        const WHITEKINGSIDE = 1 << 0;
+        const WHITEQUEENSIDE = 1 << 1;
+        const BLACKKINGSIDE = 1 << 2;
+        const BLACKQUEENSIDE = 1 << 3;
+        const ALL = Self::WHITEKINGSIDE.bits | Self::WHITEQUEENSIDE.bits | Self::BLACKKINGSIDE.bits | Self::BLACKQUEENSIDE.bits;
+
+    }
+}
+
+fn vector_reverse<T>(vec: &mut Vec<T>){
+    let mut i = 0;
+    let mut j = vec.len() - 1;
+    while i < j{
+        vec.swap(i, j);
+        i += 1;
+        j -= 1;
+    }
 }
 
 #[derive(Debug, PartialEq)]
 struct Game{
     pieces: Vec<Piece>,
     squares: Vec<Square>,
+    active_color: Color,
+    castling_rights: CastlingRights,
+    en_passant: Option<PiecePosition>,
+    halfmove_clock: usize,
+    fullmove_number: usize,
 }
 
 impl Game{
@@ -103,7 +132,10 @@ impl Game{
         let mut position = 0;
         
         //parse the fen string and create a game object
-        for row in fen.split("/"){
+        let mut rows = fen.split("/").collect::<Vec<_>>();
+        vector_reverse(&mut rows);
+
+        for row in rows{
             for c in row.chars(){
                 if(c.is_digit(10)){
                     let num = c.to_digit(10).unwrap();
@@ -134,6 +166,11 @@ impl Game{
         Game{
             pieces,
             squares,
+            active_color: Color::White,
+            castling_rights: CastlingRights::ALL,
+            en_passant: None,
+            halfmove_clock: 0,
+            fullmove_number: 1,
         }
 
     }
