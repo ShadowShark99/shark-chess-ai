@@ -32,6 +32,7 @@ static MOD67TABLE: [usize; 67] = [
     26, 49, 45, 36, 56, 7, 48, 35,
     6, 34, 33];
 
+//returns the index of the leadgin bit in the bitboard
 fn bit_scan(mut bit: u64) -> u8{
         let remainder = (bit % 67) as usize;
         MOD67TABLE[remainder] as u8
@@ -67,17 +68,6 @@ enum Square{
     Occupied(usize),
 }
 
-bitflags!{
-    struct CastlingRights: u8{
-        const NONE = 0;
-        const WHITEKINGSIDE = 1 << 0;
-        const WHITEQUEENSIDE = 1 << 1;
-        const BLACKKINGSIDE = 1 << 2;
-        const BLACKQUEENSIDE = 1 << 3;
-        const ALL = Self::WHITEKINGSIDE.bits | Self::WHITEQUEENSIDE.bits | Self::BLACKKINGSIDE.bits | Self::BLACKQUEENSIDE.bits;
-
-    }
-}
 
 fn vector_reverse<T>(vec: &mut Vec<T>){
     let mut i = 0;
@@ -90,22 +80,18 @@ fn vector_reverse<T>(vec: &mut Vec<T>){
 }
 
 #[derive(Debug, PartialEq)]
-struct Game{
+pub struct Board{
     pieces: Vec<Piece>,
     squares: Vec<Square>,
-    active_color: Color,
-    castling_rights: CastlingRights,
-    en_passant: Option<PiecePosition>,
-    halfmove_clock: usize,
-    fullmove_number: usize,
 }
 
-impl Game{
-    fn initialize() -> Game{
-        Game::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+
+impl Board{
+    pub fn initialize() -> Board{
+        Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
     }
 
-    fn to_string(&self) -> String{
+    pub fn to_string(&self) -> String{
         let mut board = "".to_owned();
         let mut temp = "".to_owned();
 
@@ -126,7 +112,7 @@ impl Game{
     }
 
     //generate a game from fen string
-    fn from_fen(fen: &str) -> Game{
+    pub fn from_fen(fen: &str) -> Board{
         let mut pieces = vec![];
         let mut squares = vec![];
         let mut position = 0;
@@ -163,17 +149,92 @@ impl Game{
                 }
             }
         }
-        Game{
+        Board{
             pieces,
             squares,
-            active_color: Color::White,
-            castling_rights: CastlingRights::ALL,
-            en_passant: None,
-            halfmove_clock: 0,
-            fullmove_number: 1,
         }
 
     }
+}
+
+bitflags!{
+  struct CastlingRights: u8{
+      const NONE = 0;
+      const WHITEKINGSIDE = 1 << 0;
+      const WHITEQUEENSIDE = 1 << 1;
+      const BLACKKINGSIDE = 1 << 2;
+      const BLACKQUEENSIDE = 1 << 3;
+      const ALL = Self::WHITEKINGSIDE.bits | Self::WHITEQUEENSIDE.bits | Self::BLACKKINGSIDE.bits | Self::BLACKQUEENSIDE.bits;
+
+  }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Game{
+    board: Board,
+    active_color: Color,
+    castling_rights: CastlingRights,
+    en_passant: Option<PiecePosition>,
+    halfmove_clock: usize,
+    fullmove_number: usize,
+}
+
+impl Game{
+  pub fn initialize() -> Game{
+      
+      //eventual will be Game::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+      Game::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  }
+
+  pub fn to_string(&self) -> String{
+      Board::to_string(&self.board)
+  }
+
+  //generate a game from fen string
+  //"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  pub fn from_fen(fen: &str) -> Game{
+      //parse the fen string and create a game object
+      let info = fen.split(" ").collect::<Vec<_>>();
+      let board = Board::from_fen(info[0]);
+      let active_color = if info[1] == "w" {Color::White} else {Color::Black};
+      let castling_rights = match info[2]{
+          "-" => CastlingRights::NONE,
+          _ => {
+              let mut rights = CastlingRights::NONE;
+              for c in info[2].chars(){
+                  match c{
+                      'K' => rights |= CastlingRights::WHITEKINGSIDE,
+                      'Q' => rights |= CastlingRights::WHITEQUEENSIDE,
+                      'k' => rights |= CastlingRights::BLACKKINGSIDE,
+                      'q' => rights |= CastlingRights::BLACKQUEENSIDE,
+                      _ => panic!("Invalid castling rights"),
+                  }
+              }
+              rights
+          }
+      };
+      let en_passant = if info[3] == "-" {
+          None
+      } else {
+          //error
+          let i: usize = 0;
+          //use .chars
+          let pos = info[3].chars().next().unwrap() as usize - 97;
+          let row = info[3].chars().nth(1).unwrap().to_digit(10).unwrap() as usize - 1;
+          Some(1 << (pos + row * 8))
+      };
+      let halfmove_clock = info[4].parse::<usize>().unwrap();
+      let fullmove_number = info[5].parse::<usize>().unwrap();
+      Game{
+          board,
+          active_color,
+          castling_rights,
+          en_passant,
+          halfmove_clock,
+          fullmove_number,
+      }
+
+  }
 }
 
 impl Piece{
