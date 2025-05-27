@@ -1,5 +1,10 @@
-use shark_chess_ai::Board;
-use shark_chess_ai::Game;
+
+mod game;
+mod utils;
+mod rayattacks;
+
+use game::*;
+
 
 fn main() {
     
@@ -7,4 +12,5 @@ fn main() {
 
     game.to_string();
     println!("{}", game.to_string());
+    println!("{}, {}, {} ", game.en_passant.unwrap_or_default(), game.halfmove_clock, game.fullmove_number);
 }
